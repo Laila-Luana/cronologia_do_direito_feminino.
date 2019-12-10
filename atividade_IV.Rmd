@@ -1,0 +1,163 @@
+---
+title: "Análise de Texto e Web Scraping"
+author: "Laíla Luana Campos"
+date: "06/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<div style="text-align: justify"> 
+
+
+[Projeto final. Atividade IV: Análise de Texto](#heading-3)
+
+Neste projeto você deverá buscar textos em livros, revistas, internet, entre outros, de forma a fazer uma análise de texto semelhante ao link que segue: 
+
+
+
+https://mateuspestana.github.io/post/textmining-analise-dos-discursos-degetulio-vargas/?fbclid=IwAR1aA4XiWtwnHqwWsIo6OmoJAOVX0HRp2Eltacc0sxI8Tvad55aQMwiPrA. 
+
+
+Lembrando que neste link é apenas uma referência, não é necessário fazer tudo que o autor fez.  
+
+**Nesta atividade foi realizado web scraping de uma página da internet a respeito da Cronologia do direito feminino.** 
+
+```{r, include=TRUE, message=F}
+
+library(rvest)
+library(wordcloud)
+library(tm)
+library(textreadr)
+library(tidytext)
+library(readr)
+library(tibble)
+library(dplyr)
+
+webpage <- read_html("https://pt.wikipedia.org/wiki/Cronologia_do_direito_feminino#Anos_80")
+
+head(webpage, 6)
+
+```
+
+A saída do comando summary em um objeto de corpus apresenta os textos, a quantidade de caracteres, a quantidade de tokens e o número de frases de cada documento.
+
+```{r, include=TRUE, message=F}
+
+#install.packages("corpus")
+#install.packages("quanteda")
+
+library(quanteda)
+library(corpus)
+
+# Criando corpus
+webpage_corpus <- corpus(webpage)
+
+# Sumarizando os 10 primeiros documentos
+summary(webpage_corpus, 10)
+
+```
+
+Análise da frequência de palavras:
+
+```{r, include=TRUE, message=F}
+
+palavras_web <- tokens(webpage_corpus,
+    "word",
+    remove_numbers = T,
+    remove_symbols = T,
+    remove_punct = T,
+    remove_separators = T,
+    remove_hyphens = F) %>% 
+  tokens_remove(pattern = c(stopwords(language = "pt"), 
+                            "á", "ás","é", "em",
+                            "ser","art", "assim", "na", "no",
+                            "sobre", "ainda", "pêlo", "da",
+                            "do", "portal", "página", 
+                            "contra", "primeira",
+                            "código-fonte", "editar", "dia", 
+                            "novo", "nísia"),padding = F) %>%
+  tokens_replace(pattern = "darepdblica", "república")
+```
+
+
+Percebe-se, portanto, que a palavras "igualdade" encontra-se na $12ª$ posição no rank das palavras com maior frequência, assim como "voto", e "direitos" em $5ª$ posição.
+
+```{r, include=TRUE, message=F}
+
+web_dfm <- dfm(palavras_web)
+
+# Fazendo a estatística de frequência de palavras: top 15
+
+library(knitr)
+library(kableExtra)
+
+textstat_frequency(web_dfm, n = 15) %>% 
+  kable() %>% 
+  kable_styling(bootstrap_options = c("condensed", "hover", "striped"), 
+                full_width = F, position = "center")
+```
+
+Uma nuvem de palavras dos 200 termos com maior frequência:
+
+```{r, include=TRUE, message=F}
+
+textplot_wordcloud(web_dfm,
+  random_order = FALSE,
+  rotation = 0.25,
+  max_words = 200,
+  color = RColorBrewer::brewer.pal(8, "Dark2"))
+
+```
+
+*Co-ocorrência de termos: Cronologia do direito feminino*
+
+Nota-se que as palavras com um alto grau de co-ocorrência com todas as outras são: direito(s) e mulher(s). 
+
+As palavras que co-ocorrem entre si são: 
+\\
+* voto e direito;
+\\
+* igualdade e lei;
+\\
+* direito e feminino;
+\\
+* direito e educação.
+
+```{r, include=TRUE, message=F}
+
+library(dplyr)
+
+ dfm_trim(web_dfm,
+           min_termfreq = 25,
+           termfreq_type = "rank") %>% 
+  textplot_network(edge_size = 0.6)
+
+```
+
+*Plot de dispersão lexical: Cronologia do direito feminino:*
+
+Observando em quais frases a palavra "mulher" (ou "mulheres", etc) aparece, e em que posições do documento:
+
+```{r, include=TRUE, message=F}
+
+textplot_xray(kwic(webpage_corpus,  "Mulher*"))
+
+```
+
+O contexto da palavra "mulher" nas frases:
+
+```{r, include=TRUE, message=F}
+
+kwic(webpage_corpus, "Mulher*", window = 3)
+
+```
+
+
+**Fontes:** 
+
+https://mateuspestana.github.io/post/textmining-analise-dos-discursos-de-getulio-vargas/
+
+https://pt.wikipedia.org/wiki/Cronologia_do_direito_feminino#Anos_80
